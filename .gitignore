@@ -5,3 +5,6 @@ live/
 renewal/
 renewal-hooks/
 *.log*
+.certbot*
+
+.DS_Store

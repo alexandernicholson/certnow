@@ -35,8 +35,14 @@ aws_secret_name=$5
 echo "Checking if Route53 hosted zone for $domain exists..."
 
 if ! aws route53 list-hosted-zones --profile $aws_profile --region $aws_region | grep -q "$domain"; then
-    echo "No Route53 hosted zone for $domain found! Please create one and try again."
-    exit 1
+    # Also check if the base domain exists instead
+    base_domain=$(echo $domain | rev | cut -d"." -f1-2 | rev)
+    if ! aws route53 list-hosted-zones --profile $aws_profile --region $aws_region | grep -q "$base_domain"; then
+        echo "No Route53 hosted zone for $domain or $base_domain found! Please create one and try again."
+        exit 1
+    else
+        echo "Looks like the base domain $base_domain exists, so we're ok to continue."
+    fi
 fi
 
 # Check if the secrets manager secret already exists, otherwise create it
@@ -60,7 +66,7 @@ echo "Generating certificate for $domain..."
 # If domain is wildcard, set ABC to true
 if [[ $domain == *"*"* ]]; then
     echo "Wildcard domain detected. Using Let's Encrypt..."
-    certbot certonly \
+    AWS_PROFILE=$aws_profile AWS_REGION=$aws_region certbot certonly \
         --dns-route53 \
         --preferred-challenges dns \
         --email $email \
@@ -73,7 +79,7 @@ if [[ $domain == *"*"* ]]; then
         -q
 else
     echo "Wildcard domain not detected. Using BuyPass..."
-    certbot certonly \
+    AWS_PROFILE=$aws_profile AWS_REGION=$aws_region certbot certonly \
         --dns-route53 \
         --preferred-challenges dns \
         --email $email \
@@ -94,15 +100,11 @@ echo "Uploading certificate to AWS Secrets Manager..."
 # Upload secrets (file://$(pwd)/live/$domain/cert.pem & file://$(pwd)/live/$domain/privkey.pem) to AWS Secrets Manager as a JSON object, making sure to replace newlines with a space
 aws secretsmanager put-secret-value \
     --secret-id $aws_secret_name \
-    --secret-string "{\"certificate\":\"$(cat live/$domain/cert.pem | tr '\n' ' ')\",\"private_key\":\"$(cat live/$domain/privkey.pem | tr '\n' ' ')\"}" \
+    --secret-string "{\"certificate\":\"$(cat live/$domain/cert.pem | tr '\n' ' ')\",\"private_key\":\"$(cat live/$domain/privkey.pem | tr '\n' ' ')\",\"chain\":\"$(cat live/$domain/chain.pem | tr '\n' ' ')\",\"full_chain\":\"$(cat live/$domain/fullchain.pem | tr '\n' ' ')}\"" \
     --profile $aws_profile \
     --region $aws_region
 
 echo "Certificate uploaded!"
-
-# Security - Delete every file listed in the .gitignore file. This prevents anyone stealing the cert and key from the filesystem.
-echo "Cleaning up..."
-cat .gitignore | xargs rm -rf
 
 echo "Done!"
 
