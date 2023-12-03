@@ -1,0 +1,7 @@
+accounts/
+archive/
+backups/
+live/
+renewal/
+renewal-hooks/
+*.log*
