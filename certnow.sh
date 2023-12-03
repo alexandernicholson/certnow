@@ -1,13 +1,13 @@
 #!/bin/bash
 # This is a simple bash script which uses Certbot to generate a wildcard certificate for a domain and upload it to AWS Secrets Manager. It uses DNS validation via Route 53 for the domain.
 
-# Usage: certnow.sh <domain> <email> <aws_profile> <aws_region> <aws_secret_name>
+# Usage: certnow.sh <domain> <email> <aws_profile> <aws_region> <aws_secret_name> <extra_certbot_args>
 
 set -e
 set -o pipefail
 
-if [ $# -ne 5 ]; then
-    echo "Usage: certnow.sh <domain> <email> <aws_profile> <aws_region> <aws_secret_name>"
+if [ $# -lt 5 ]; then
+    echo "Usage: certnow.sh <domain> <email> <aws_profile> <aws_region> <aws_secret_name> \"<extra_certbot_args>\""
     exit 1
 fi
 
@@ -30,6 +30,7 @@ email=$2
 aws_profile=$3
 aws_region=$4
 aws_secret_name=$5
+extra_certbot_args=$6
 
 # Check if a Route53 hosted zone for <domain> exists
 echo "Checking if Route53 hosted zone for $domain exists..."
@@ -76,7 +77,8 @@ if [[ $domain == *"*"* ]]; then
         --logs-dir . \
         --no-eff-email \
         --domain "$domain,*.$domain" \
-        -q
+        -q \
+        $extra_certbot_args
 else
     echo "Wildcard domain not detected. Using BuyPass..."
     AWS_PROFILE=$aws_profile AWS_REGION=$aws_region certbot certonly \
@@ -90,7 +92,8 @@ else
         --no-eff-email \
         --server 'https://api.buypass.com/acme/directory' \
         --domain "$domain" \
-        -q
+        -q \
+        $extra_certbot_args
 fi
 
 echo "Certificate generated!"
