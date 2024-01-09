@@ -53,7 +53,7 @@ echo "Checking if secret $aws_secret_name exists in Secrets Manager..."
 
 # Check if the secret exists
 if aws secretsmanager describe-secret --secret-id "$aws_secret_name" --profile $aws_profile --region $aws_region >/dev/null 2>&1; then
-    echo "Secret $aws_secret_name already exists."
+    echo "Secret $aws_secret_name already exists. Importing for "
 else
     echo "Secret $aws_secret_name does not exist. Creating..."
     # Create the secret
