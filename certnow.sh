@@ -53,7 +53,25 @@ echo "Checking if secret $aws_secret_name exists in Secrets Manager..."
 
 # Check if the secret exists
 if aws secretsmanager describe-secret --secret-id "$aws_secret_name" --profile $aws_profile --region $aws_region >/dev/null 2>&1; then
-    echo "Secret $aws_secret_name already exists. Importing for "
+    echo "Secret $aws_secret_name already exists. Importing for $domain..."
+    # Download the certificate and private key from the secret
+    aws secretsmanager get-secret-value --secret-id "$aws_secret_name" --profile $aws_profile --region $aws_region | jq -r '.SecretString' > secret.json
+    # Extract with jq and flatten the JSON object
+    certificate=$(jq -r '.certificate' secret.json)
+    private_key=$(jq -r '.private_key' secret.json)
+    rm secret.json
+    if [[ $certificate == "" ]] || [[ $private_key == "" ]]; then
+        echo "Certificate for $domain not generated yet. Continuing..."
+    else
+        echo "Certificate for $domain already exists in the secret. Checking validity period is longer than 30 days..."
+        # Check if the certificate is valid for at least 30 days
+        if openssl x509 -checkend 2592000 -noout -in <(echo "$certificate") >/dev/null 2>&1; then
+            echo "Certificate for $domain is valid for at least 30 days. Exiting..."
+            exit 0
+        else
+            echo "Certificate for $domain is not valid for at least 30 days. Continuing..."
+        fi
+    fi
 else
     echo "Secret $aws_secret_name does not exist. Creating..."
     # Create the secret
@@ -103,7 +121,7 @@ echo "Uploading certificate to AWS Secrets Manager..."
 # Upload secrets (file://$(pwd)/live/$domain/cert.pem & file://$(pwd)/live/$domain/privkey.pem) to AWS Secrets Manager as a JSON object, making sure to replace newlines with a space
 aws secretsmanager put-secret-value \
     --secret-id $aws_secret_name \
-    --secret-string "{\"certificate\":\"$(cat live/$domain/cert.pem | tr '\n' ' ')\",\"private_key\":\"$(cat live/$domain/privkey.pem | tr '\n' ' ')\",\"chain\":\"$(cat live/$domain/chain.pem | tr '\n' ' ')\",\"full_chain\":\"$(cat live/$domain/fullchain.pem | tr '\n' ' ')}\"" \
+    --secret-string "{\"certificate\":\"$(cat live/$domain/cert.pem | awk '{printf "%s\\n", $0}')\",\"private_key\":\"$(cat live/$domain/privkey.pem | awk '{printf "%s\\n", $0}')\",\"chain\":\"$(cat live/$domain/chain.pem | awk '{printf "%s\\n", $0}')\",\"full_chain\":\"$(cat live/$domain/fullchain.pem | awk '{printf "%s\\n", $0}')\"}" \
     --profile $aws_profile \
     --region $aws_region
 
