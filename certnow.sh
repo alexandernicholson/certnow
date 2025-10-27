@@ -102,7 +102,7 @@ if [[ $domain == *"*"* ]]; then
         -q \
         $extra_certbot_args
 else
-    echo "Wildcard domain not detected. Using BuyPass..."
+    echo "Wildcard domain not detected. Using Let's Encrypt..."
     AWS_REGION=$aws_region certbot certonly \
         --dns-route53 \
         --preferred-challenges dns \
@@ -112,7 +112,6 @@ else
         --work-dir . \
         --logs-dir . \
         --no-eff-email \
-        --server 'https://api.buypass.com/acme/directory' \
         --domain "$domain" \
         -q \
         $extra_certbot_args

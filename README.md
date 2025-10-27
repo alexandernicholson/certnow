@@ -3,7 +3,7 @@ Certbot 💜 AWS (Secrets Manager + Route 53)
 
 This is a simple bash script which uses Certbot to generate a wildcard certificate for a domain and upload it to AWS Secrets Manager. It uses DNS validation via Route 53 for the domain.
 
-By default, if you do not use a wildcard domain, BuyPass will be used as the CA. Otherwise, Let's Encrypt will be used. The certificate will be valid for 90 days if using Let's Encrypt, or 180 days if using BuyPass.
+By default, Let's Encrypt will be used. The certificate will be valid for 90 days if using Let's Encrypt.
 
 We recommend running this script via Airflow, a cron job, or other serverless infrastructure options to keep your certificate up to date.
 
